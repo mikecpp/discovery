@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import DeviceCard from '../components/DeviceCard.vue'
 import { formatAgo, getJson, usePolling } from '../api.js'
 
 const devices = ref([])
@@ -38,13 +39,6 @@ const progress = computed(() => {
   if (!status.value || !status.value.hostCount) return 0
   return Math.min(100, Math.round((status.value.scanned / status.value.hostCount) * 100))
 })
-
-function label(device) {
-  if (device.hostname) return device.hostname
-  if (device.self) return 'This computer'
-  if (device.gateway) return 'Default gateway'
-  return ''
-}
 </script>
 
 <template>
@@ -75,40 +69,6 @@ function label(device) {
   <div v-else-if="!loaded" class="card muted">Loading...</div>
 
   <div class="grid">
-    <article v-for="device in visible" :key="device.ip" class="device" :class="device.online ? 'on' : 'off'">
-      <header>
-        <span class="dot" :class="device.online ? 'on' : 'off'"></span>
-        <span class="ip">{{ device.ip }}</span>
-        <span class="state" :class="device.online ? 'on' : 'off'">{{ device.online ? 'ON' : 'OFF' }}</span>
-      </header>
-      <div class="name">
-        {{ label(device) }}
-        <span v-if="device.self" class="tag self">self</span>
-        <span v-if="device.gateway" class="tag gateway">gateway</span>
-      </div>
-      <div class="type">{{ device.identified ? device.type || 'Unknown device' : 'Identifying...' }}</div>
-      <dl>
-        <dt>OS</dt>
-        <dd>{{ device.os || '-' }}</dd>
-        <dt>Vendor</dt>
-        <dd>{{ device.vendor || '-' }}</dd>
-        <dt>MAC</dt>
-        <dd>{{ device.mac || '-' }}</dd>
-        <dt>Ping</dt>
-        <dd>
-          <template v-if="device.online">{{ device.rtt.toFixed(1) }} ms · TTL {{ device.ttl }}</template>
-          <template v-else>no reply</template>
-        </dd>
-        <dt>Seen</dt>
-        <dd>{{ formatAgo(device.lastSeen, now) }}</dd>
-        <dt>Ports</dt>
-        <dd>
-          <template v-if="device.openPorts.length">
-            <span v-for="port in device.openPorts" :key="port" class="tag">{{ port }}</span>
-          </template>
-          <template v-else>-</template>
-        </dd>
-      </dl>
-    </article>
+    <DeviceCard v-for="device in visible" :key="device.ip" :device="device" :now="now" />
   </div>
 </template>

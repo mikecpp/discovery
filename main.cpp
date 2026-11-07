@@ -11,6 +11,7 @@
 
 #include "Api.hpp"
 #include "Discovery.hpp"
+#include "RangeScan.hpp"
 
 #if defined(CONFIG_COMPONENT_WEBSERVER)
 #include "WebServer.hpp"
@@ -86,7 +87,7 @@ void openBrowser(const std::string& url) {
 }
 #endif
 
-void registerRoutes(WebServer& server, Discovery& discovery) {
+void registerRoutes(WebServer& server, Discovery& discovery, RangeScan& rangeScan) {
     server.addRoute("GET", "/api/status", [&discovery](const HttpRequest&) {
         return HttpResponse::json(Api::status(discovery.status(), discovery.subnet()));
     });
@@ -96,6 +97,27 @@ void registerRoutes(WebServer& server, Discovery& discovery) {
     server.addRoute("POST", "/api/scan", [&discovery](const HttpRequest&) {
         discovery.requestScan();
         return HttpResponse::json(Api::message("A full scan has been requested."), 202);
+    });
+    server.addRoute("GET", "/api/range", [&rangeScan](const HttpRequest&) {
+        return HttpResponse::json(Api::range(rangeScan.status(), rangeScan.devices()));
+    });
+    server.addRoute("POST", "/api/range", [&rangeScan](const HttpRequest& request) {
+        const std::string start = request.queryValue("start");
+        const std::string end = request.queryValue("end");
+        std::string error;
+        switch (rangeScan.start(start, end, error)) {
+        case RangeScan::StartResult::Started:
+            return HttpResponse::json(Api::message("Scanning " + start + " - " + end + "."), 202);
+        case RangeScan::StartResult::Busy:
+            return HttpResponse::json(Api::message(error), 409);
+        case RangeScan::StartResult::Invalid:
+            break;
+        }
+        return HttpResponse::json(Api::message(error), 400);
+    });
+    server.addRoute("POST", "/api/range/stop", [&rangeScan](const HttpRequest&) {
+        rangeScan.stop();
+        return HttpResponse::json(Api::message("The range scan is stopping."), 202);
     });
 }
 #else
@@ -119,7 +141,8 @@ int main() {
     std::signal(SIGTERM, onSignal);
     std::signal(SIGPIPE, SIG_IGN);
 
-    Discovery discovery(loadSettings());
+    const DiscoverySettings settings = loadSettings();
+    Discovery discovery(settings);
     if (!discovery.start()) {
         log("ERROR", "Discovery failed to start: " + discovery.lastError());
         return 1;
@@ -134,8 +157,9 @@ int main() {
     options.port = static_cast<std::uint16_t>(CONFIG_WEBSERVER_PORT);
     options.title = CONFIG_WEBSERVER_TITLE;
 
+    RangeScan rangeScan(settings, subnet);
     WebServer server(options);
-    registerRoutes(server, discovery);
+    registerRoutes(server, discovery, rangeScan);
     if (!server.start()) {
         log("ERROR", "Web server failed to start: " + server.lastError());
         return 1;

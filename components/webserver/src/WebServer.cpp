@@ -1,6 +1,7 @@
 #include "WebServer.hpp"
 
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <poll.h>
 #include <sys/socket.h>
@@ -26,6 +27,37 @@ constexpr int kSendFlags = MSG_NOSIGNAL;
 #else
 constexpr int kSendFlags = 0;
 #endif
+
+void setCloseOnExec(int fd) {
+    const int flags = ::fcntl(fd, F_GETFD);
+    if (flags >= 0) {
+        ::fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+    }
+}
+
+int createSocketCloexec(int domain, int type, int protocol) {
+#if defined(SOCK_CLOEXEC)
+    return ::socket(domain, type | SOCK_CLOEXEC, protocol);
+#else
+    const int fd = ::socket(domain, type, protocol);
+    if (fd >= 0) {
+        setCloseOnExec(fd);
+    }
+    return fd;
+#endif
+}
+
+int acceptCloexec(int listener) {
+#if defined(__linux__)
+    return ::accept4(listener, nullptr, nullptr, SOCK_CLOEXEC);
+#else
+    const int fd = ::accept(listener, nullptr, nullptr);
+    if (fd >= 0) {
+        setCloseOnExec(fd);
+    }
+    return fd;
+#endif
+}
 
 bool sendAll(int socket, const char* data, std::size_t size) {
     while (size > 0) {
@@ -145,7 +177,7 @@ bool WebServer::start() {
         return false;
     }
 
-    listener_ = ::socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    listener_ = createSocketCloexec(AF_INET, SOCK_STREAM, 0);
     if (listener_ < 0) {
         lastError_ = std::string("Cannot create socket: ") + std::strerror(errno);
         return false;
@@ -215,7 +247,7 @@ void WebServer::serve() {
         if (::poll(&descriptor, 1, kPollIntervalMilliseconds) <= 0) {
             continue;
         }
-        const int client = ::accept4(listener_, nullptr, nullptr, SOCK_CLOEXEC);
+        const int client = acceptCloexec(listener_);
         if (client < 0) {
             continue;
         }

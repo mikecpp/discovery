@@ -8,10 +8,18 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#if defined(__APPLE__)
+#include <net/if_dl.h>
+#include <net/route.h>
+#include <sys/sysctl.h>
+#endif
+
+#include <cerrno>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <sstream>
+#include <vector>
 
 namespace {
 
@@ -30,6 +38,83 @@ int prefixLength(std::uint32_t netmask) {
     return length;
 }
 
+#if defined(__APPLE__)
+std::size_t roundUp(std::size_t length) {
+    return length > 0 ? 1 + ((length - 1) | (sizeof(std::uint32_t) - 1)) : sizeof(std::uint32_t);
+}
+
+bool defaultRoute(std::string& interfaceName, std::uint32_t& gateway) {
+    int mib[] = {CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_FLAGS, RTF_GATEWAY};
+    std::size_t size = 0;
+    if (::sysctl(mib, 6, nullptr, &size, nullptr, 0) != 0 || size == 0) {
+        return false;
+    }
+    std::vector<char> buffer(size);
+    if (::sysctl(mib, 6, buffer.data(), &size, nullptr, 0) != 0) {
+        return false;
+    }
+    for (std::size_t offset = 0; offset + sizeof(rt_msghdr) <= size;) {
+        const auto* message = reinterpret_cast<const rt_msghdr*>(buffer.data() + offset);
+        offset += message->rtm_msglen;
+        if (message->rtm_msglen == 0) {
+            break;
+        }
+        if ((message->rtm_flags & RTF_IFSCOPE) != 0) {
+            continue;
+        }
+        const sockaddr* addresses[RTAX_MAX] = {};
+        const char* cursor = reinterpret_cast<const char*>(message + 1);
+        for (int index = 0; index < RTAX_MAX; ++index) {
+            if ((message->rtm_addrs & (1 << index)) != 0) {
+                addresses[index] = reinterpret_cast<const sockaddr*>(cursor);
+                cursor += roundUp(addresses[index]->sa_len);
+            }
+        }
+        const sockaddr* destination = addresses[RTAX_DST];
+        const sockaddr* via = addresses[RTAX_GATEWAY];
+        if (destination == nullptr || destination->sa_family != AF_INET || via == nullptr ||
+            via->sa_family != AF_INET) {
+            continue;
+        }
+        if (reinterpret_cast<const sockaddr_in*>(destination)->sin_addr.s_addr != 0) {
+            continue;
+        }
+        char name[IF_NAMESIZE];
+        if (::if_indextoname(message->rtm_index, name) == nullptr) {
+            continue;
+        }
+        interfaceName = name;
+        gateway = ntohl(reinterpret_cast<const sockaddr_in*>(via)->sin_addr.s_addr);
+        return true;
+    }
+    return false;
+}
+
+std::string hardwareAddress(const std::string& interfaceName) {
+    ifaddrs* list = nullptr;
+    if (::getifaddrs(&list) != 0) {
+        return {};
+    }
+    std::string result;
+    for (const ifaddrs* item = list; item != nullptr; item = item->ifa_next) {
+        if (item->ifa_addr == nullptr || item->ifa_addr->sa_family != AF_LINK || interfaceName != item->ifa_name) {
+            continue;
+        }
+        const auto* link = reinterpret_cast<const sockaddr_dl*>(item->ifa_addr);
+        if (link->sdl_alen != 6) {
+            continue;
+        }
+        const auto* bytes = reinterpret_cast<const unsigned char*>(LLADDR(link));
+        char buffer[18];
+        std::snprintf(buffer, sizeof(buffer), "%02x:%02x:%02x:%02x:%02x:%02x", bytes[0], bytes[1], bytes[2],
+                      bytes[3], bytes[4], bytes[5]);
+        result = buffer;
+        break;
+    }
+    ::freeifaddrs(list);
+    return result;
+}
+#else
 bool defaultRoute(std::string& interfaceName, std::uint32_t& gateway) {
     std::ifstream file("/proc/net/route");
     std::string line;
@@ -70,6 +155,7 @@ std::string hardwareAddress(const std::string& interfaceName) {
     ::close(probe);
     return result;
 }
+#endif
 
 }
 

@@ -25,6 +25,36 @@ namespace {
 constexpr int kMaxDataSize = 1400;
 constexpr std::size_t kReceiveBufferSize = 2048;
 
+// ICMP echo header layout (RFC 792); defined locally because Linux (icmphdr) and BSD/macOS (icmp) disagree.
+struct EchoHeader {
+    std::uint8_t type;
+    std::uint8_t code;
+    std::uint16_t checksum;
+    std::uint16_t id;
+    std::uint16_t sequence;
+};
+static_assert(sizeof(EchoHeader) == 8, "ICMP echo header must be 8 bytes");
+
+void setCloseOnExec(int fd) {
+    const int flags = ::fcntl(fd, F_GETFD);
+    if (flags >= 0) {
+        ::fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+    }
+}
+
+int createPipeCloexec(int fds[2]) {
+#if defined(__linux__)
+    return ::pipe2(fds, O_CLOEXEC);
+#else
+    if (::pipe(fds) != 0) {
+        return -1;
+    }
+    setCloseOnExec(fds[0]);
+    setCloseOnExec(fds[1]);
+    return 0;
+#endif
+}
+
 std::uint16_t checksum(const unsigned char* data, std::size_t size) {
     std::uint32_t sum = 0;
     for (std::size_t index = 0; index + 1 < size; index += 2) {
@@ -113,11 +143,18 @@ void Icmp::open() {
 }
 
 bool Icmp::openSocket(int type) {
+#if defined(SOCK_CLOEXEC)
     socket_ = ::socket(AF_INET, type | SOCK_CLOEXEC, IPPROTO_ICMP);
+#else
+    socket_ = ::socket(AF_INET, type, IPPROTO_ICMP);
+#endif
     if (socket_ < 0) {
         lastError_ = std::strerror(errno);
         return false;
     }
+#if !defined(SOCK_CLOEXEC)
+    setCloseOnExec(socket_);
+#endif
     int enabled = 1;
     ::setsockopt(socket_, IPPROTO_IP, IP_RECVTTL, &enabled, sizeof(enabled));
     return true;
@@ -155,18 +192,18 @@ Icmp::Result Icmp::pingSocket(const sockaddr_in& address) {
 }
 
 bool Icmp::sendEcho(const sockaddr_in& address, std::uint16_t sequence) {
-    std::vector<unsigned char> packet(sizeof(icmphdr) + static_cast<std::size_t>(options_.dataSize), 0);
-    icmphdr header{};
+    std::vector<unsigned char> packet(sizeof(EchoHeader) + static_cast<std::size_t>(options_.dataSize), 0);
+    EchoHeader header{};
     header.type = ICMP_ECHO;
     header.code = 0;
-    header.un.echo.id = htons(id_);
-    header.un.echo.sequence = htons(sequence);
+    header.id = htons(id_);
+    header.sequence = htons(sequence);
     std::memcpy(packet.data(), &header, sizeof(header));
     for (std::size_t index = sizeof(header); index < packet.size(); ++index) {
         packet[index] = static_cast<unsigned char>(index);
     }
     const std::uint16_t sum = checksum(packet.data(), packet.size());
-    std::memcpy(packet.data() + offsetof(icmphdr, checksum), &sum, sizeof(sum));
+    std::memcpy(packet.data() + offsetof(EchoHeader, checksum), &sum, sizeof(sum));
 
     while (true) {
         const ssize_t sent = ::sendto(socket_, packet.data(), packet.size(), 0,
@@ -236,21 +273,27 @@ Icmp::Result Icmp::receiveReply(const sockaddr_in& address, std::uint16_t sequen
         const unsigned char* icmpData = buffer;
         std::size_t icmpLength = static_cast<std::size_t>(received);
         int ttl = 0;
-        if (mode_ == Mode::Raw) {
-            if (icmpLength < sizeof(iphdr)) {
+#if defined(__APPLE__)
+        // macOS delivers the IP header on ICMP datagram sockets too; Linux strips it.
+        const bool hasIpHeader = true;
+#else
+        const bool hasIpHeader = mode_ == Mode::Raw;
+#endif
+        if (hasIpHeader) {
+            if (icmpLength < sizeof(ip)) {
                 continue;
             }
-            iphdr ipHeader{};
+            ip ipHeader{};
             std::memcpy(&ipHeader, buffer, sizeof(ipHeader));
-            const std::size_t headerLength = static_cast<std::size_t>(ipHeader.ihl) * 4;
-            if (icmpLength < headerLength + sizeof(icmphdr)) {
+            const std::size_t headerLength = static_cast<std::size_t>(ipHeader.ip_hl) * 4;
+            if (icmpLength < headerLength + sizeof(EchoHeader)) {
                 continue;
             }
-            ttl = ipHeader.ttl;
+            ttl = ipHeader.ip_ttl;
             icmpData += headerLength;
             icmpLength -= headerLength;
         } else {
-            if (icmpLength < sizeof(icmphdr)) {
+            if (icmpLength < sizeof(EchoHeader)) {
                 continue;
             }
             for (cmsghdr* item = CMSG_FIRSTHDR(&message); item != nullptr; item = CMSG_NXTHDR(&message, item)) {
@@ -262,12 +305,12 @@ Icmp::Result Icmp::receiveReply(const sockaddr_in& address, std::uint16_t sequen
             }
         }
 
-        icmphdr header{};
+        EchoHeader header{};
         std::memcpy(&header, icmpData, sizeof(header));
-        if (header.type != ICMP_ECHOREPLY || ntohs(header.un.echo.sequence) != sequence) {
+        if (header.type != ICMP_ECHOREPLY || ntohs(header.sequence) != sequence) {
             continue;
         }
-        if (mode_ == Mode::Raw && ntohs(header.un.echo.id) != id_) {
+        if (mode_ == Mode::Raw && ntohs(header.id) != id_) {
             continue;
         }
         result.status = Status::Ok;
@@ -280,13 +323,18 @@ Icmp::Result Icmp::receiveReply(const sockaddr_in& address, std::uint16_t sequen
 Icmp::Result Icmp::pingExternal(const std::string& ip) {
     Result result;
     int pipeFds[2];
-    if (::pipe2(pipeFds, O_CLOEXEC) != 0) {
+    if (createPipeCloexec(pipeFds) != 0) {
         result.status = Status::SendFail;
         return result;
     }
 
+#if defined(__APPLE__)
+    // BSD ping takes -W in milliseconds; iputils ping takes seconds.
+    const std::string timeoutText = std::to_string(options_.timeoutMs);
+#else
     const int timeoutSeconds = (options_.timeoutMs + 999) / 1000;
     const std::string timeoutText = std::to_string(timeoutSeconds);
+#endif
     const std::string sizeText = std::to_string(options_.dataSize);
     std::vector<std::string> arguments = {options_.externalCommand, "-n", "-c", "1", "-W", timeoutText,
                                           "-s", sizeText, ip};

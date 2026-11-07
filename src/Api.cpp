@@ -41,6 +41,29 @@ std::string Api::devices(const std::vector<Device>& devices) {
     return object.str();
 }
 
+std::string Api::range(const RangeStatus& status, const std::vector<Device>& devices) {
+    JsonArray array;
+    for (const Device& item : devices) {
+        array.pushRaw(device(item));
+    }
+    const std::int64_t end = status.finished ? status.finished : Discovery::now();
+    JsonObject object;
+    object.set("phase", status.phase)
+        .set("start", status.start)
+        .set("end", status.end)
+        .set("error", status.error)
+        .set("hostCount", status.hostCount)
+        .set("scanned", status.scanned)
+        .set("found", status.found)
+        .set("maxHosts", status.maxHosts)
+        .set("started", status.started)
+        .set("finished", status.finished)
+        .set("duration", status.started ? end - status.started : std::int64_t{0})
+        .setRaw("devices", array.str())
+        .set("now", Discovery::now());
+    return object.str();
+}
+
 std::string Api::device(const Device& device) {
     JsonArray ports;
     for (const int port : device.openPorts) {

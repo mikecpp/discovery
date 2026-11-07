@@ -64,6 +64,7 @@ add_executable(discovery
     src/Identifier.cpp
     src/Json.cpp
     src/Oui.cpp
+    src/RangeScan.cpp
     src/Subnet.cpp
 )
 target_include_directories(discovery PRIVATE src)

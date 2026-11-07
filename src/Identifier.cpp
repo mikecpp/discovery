@@ -9,13 +9,22 @@
 #include <sys/utsname.h>
 #include <unistd.h>
 
+#if defined(__APPLE__)
+#include <net/if_dl.h>
+#include <net/route.h>
+#include <netinet/if_ether.h>
+#include <sys/sysctl.h>
+#endif
+
 #include <algorithm>
 #include <cerrno>
 #include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <initializer_list>
 #include <fstream>
 #include <sstream>
+#include <vector>
 
 #include "Oui.hpp"
 
@@ -89,6 +98,47 @@ Identity Identifier::identify(const std::string& ip, int ttl, bool self) const {
     return identity;
 }
 
+#if defined(__APPLE__)
+std::string Identifier::arpLookup(const std::string& ip) {
+    in_addr target{};
+    if (::inet_pton(AF_INET, ip.c_str(), &target) != 1) {
+        return {};
+    }
+    int mib[] = {CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_FLAGS, RTF_LLINFO};
+    std::size_t size = 0;
+    if (::sysctl(mib, 6, nullptr, &size, nullptr, 0) != 0 || size == 0) {
+        return {};
+    }
+    std::vector<char> buffer(size);
+    if (::sysctl(mib, 6, buffer.data(), &size, nullptr, 0) != 0) {
+        return {};
+    }
+    for (std::size_t offset = 0; offset + sizeof(rt_msghdr) <= size;) {
+        const auto* message = reinterpret_cast<const rt_msghdr*>(buffer.data() + offset);
+        offset += message->rtm_msglen;
+        if (message->rtm_msglen == 0) {
+            break;
+        }
+        const auto* address = reinterpret_cast<const sockaddr_inarp*>(message + 1);
+        if (address->sin_addr.s_addr != target.s_addr) {
+            continue;
+        }
+        const std::size_t addressLength =
+            address->sin_len > 0 ? 1 + ((address->sin_len - 1) | (sizeof(std::uint32_t) - 1)) : sizeof(std::uint32_t);
+        const auto* link =
+            reinterpret_cast<const sockaddr_dl*>(reinterpret_cast<const char*>(address) + addressLength);
+        if (link->sdl_family != AF_LINK || link->sdl_alen != 6) {
+            continue;
+        }
+        const auto* bytes = reinterpret_cast<const unsigned char*>(LLADDR(link));
+        char text[18];
+        std::snprintf(text, sizeof(text), "%02x:%02x:%02x:%02x:%02x:%02x", bytes[0], bytes[1], bytes[2], bytes[3],
+                      bytes[4], bytes[5]);
+        return text;
+    }
+    return {};
+}
+#else
 std::string Identifier::arpLookup(const std::string& ip) {
     std::ifstream file("/proc/net/arp");
     std::string line;
@@ -108,6 +158,7 @@ std::string Identifier::arpLookup(const std::string& ip) {
     }
     return {};
 }
+#endif
 
 std::string Identifier::resolveName(const std::string& ip) {
     sockaddr_in address{};
@@ -136,10 +187,19 @@ std::vector<int> Identifier::probePorts(const std::string& ip) const {
     std::vector<Probe> probes;
     std::vector<pollfd> descriptors;
     for (const int port : kProbePorts) {
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
         const int sock = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
         if (sock < 0) {
             continue;
         }
+#else
+        const int sock = ::socket(AF_INET, SOCK_STREAM, 0);
+        if (sock < 0) {
+            continue;
+        }
+        ::fcntl(sock, F_SETFL, ::fcntl(sock, F_GETFL) | O_NONBLOCK);
+        ::fcntl(sock, F_SETFD, FD_CLOEXEC);
+#endif
         address.sin_port = htons(static_cast<std::uint16_t>(port));
         const int connected = ::connect(sock, reinterpret_cast<const sockaddr*>(&address), sizeof(address));
         if (connected == 0) {

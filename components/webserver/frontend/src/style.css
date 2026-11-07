@@ -22,6 +22,13 @@ button:hover, .button:hover { background: #27ab83; }
 button:disabled { background: #9aa5b1; cursor: default; }
 .toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
 .toolbar .spacer { flex: 1; }
+.range-form { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.range-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #616e7c; font-weight: 600; }
+.range-form input { width: 180px; padding: 8px 10px; border: 1px solid #cbd2d9; border-radius: 4px; font-size: 14px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: #1f2933; }
+.range-form input:focus { outline: none; border-color: #3ebd93; box-shadow: 0 0 0 3px rgba(62, 189, 147, 0.2); }
+.range-form input:disabled { background: #f4f6f8; color: #7b8794; }
+button.secondary { background: #e4e7eb; color: #3e4c59; }
+button.secondary:hover { background: #cbd2d9; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 16px; border: 1px solid #cbd2d9; background: #ffffff; color: #3e4c59; font-size: 13px; cursor: pointer; }
 .chip.active { background: #1f2933; color: #ffffff; border-color: #1f2933; }
 .chip .count { font-weight: 600; }
