@@ -1,3 +1,33 @@
+import { ref, watch } from 'vue'
+
+const LAYOUT_KEY = 'discovery.layout'
+let layout = null
+
+export function useLayout() {
+  if (!layout) {
+    let saved = null
+    try {
+      saved = localStorage.getItem(LAYOUT_KEY)
+    } catch {
+    }
+    layout = ref(saved === 'list' ? 'list' : 'cards')
+    watch(layout, (value) => {
+      try {
+        localStorage.setItem(LAYOUT_KEY, value)
+      } catch {
+      }
+    })
+  }
+  return layout
+}
+
+export function deviceLabel(device) {
+  if (device.hostname) return device.hostname
+  if (device.self) return 'This computer'
+  if (device.gateway) return 'Default gateway'
+  return ''
+}
+
 export async function getJson(path) {
   const response = await fetch(path)
   if (!response.ok) {

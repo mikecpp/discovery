@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import DeviceCard from '../components/DeviceCard.vue'
+import DeviceList from '../components/DeviceList.vue'
+import LayoutToggle from '../components/LayoutToggle.vue'
 import { formatDuration, formatTime, getJson, postJson, usePolling } from '../api.js'
 
 const IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/
@@ -122,7 +123,13 @@ async function stop() {
   </div>
   <div v-else-if="!range" class="card muted">Loading...</div>
 
-  <div v-if="range" class="grid">
-    <DeviceCard v-for="device in range.devices" :key="device.ip" :device="device" :now="range.now" />
-  </div>
+  <template v-if="range && range.devices.length">
+    <div class="toolbar">
+      <h2 style="margin: 0">Devices</h2>
+      <span class="badge">{{ range.devices.length }}</span>
+      <span class="spacer"></span>
+      <LayoutToggle />
+    </div>
+    <DeviceList :devices="range.devices" :now="range.now" />
+  </template>
 </template>

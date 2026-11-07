@@ -27,6 +27,23 @@ button:disabled { background: #9aa5b1; cursor: default; }
 .range-form input { width: 180px; padding: 8px 10px; border: 1px solid #cbd2d9; border-radius: 4px; font-size: 14px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: #1f2933; }
 .range-form input:focus { outline: none; border-color: #3ebd93; box-shadow: 0 0 0 3px rgba(62, 189, 147, 0.2); }
 .range-form input:disabled { background: #f4f6f8; color: #7b8794; }
+.segmented { display: inline-flex; border: 1px solid #cbd2d9; border-radius: 6px; overflow: hidden; background: #ffffff; }
+.segmented button { background: transparent; color: #3e4c59; border-radius: 0; padding: 6px 12px; font-size: 13px; }
+.segmented button + button { border-left: 1px solid #cbd2d9; }
+.segmented button:hover { background: #f4f6f8; }
+.segmented button.active { background: #1f2933; color: #ffffff; }
+.segmented .icon { margin-right: 6px; }
+.table-wrap { padding: 0; overflow-x: auto; }
+.device-table { font-size: 13px; }
+.device-table th { background: #f4f6f8; color: #616e7c; font-weight: 600; white-space: nowrap; position: sticky; top: 0; }
+.device-table td { vertical-align: middle; }
+.device-table tbody tr:hover { background: #f9fafb; }
+.device-table tr.off { background: #fff7f7; }
+.device-table tr.off td { color: #7b8794; }
+.device-table .ip { font-weight: 600; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; white-space: nowrap; }
+.device-table .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; white-space: nowrap; }
+.device-table .nowrap { white-space: nowrap; }
+.device-table .tag { margin-bottom: 0; }
 button.secondary { background: #e4e7eb; color: #3e4c59; }
 button.secondary:hover { background: #cbd2d9; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 16px; border: 1px solid #cbd2d9; background: #ffffff; color: #3e4c59; font-size: 13px; cursor: pointer; }

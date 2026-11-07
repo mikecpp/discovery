@@ -1,17 +1,10 @@
 <script setup>
-import { formatAgo } from '../api.js'
+import { deviceLabel, formatAgo } from '../api.js'
 
 defineProps({
   device: { type: Object, required: true },
   now: { type: Number, required: true },
 })
-
-function label(device) {
-  if (device.hostname) return device.hostname
-  if (device.self) return 'This computer'
-  if (device.gateway) return 'Default gateway'
-  return ''
-}
 </script>
 
 <template>
@@ -22,7 +15,7 @@ function label(device) {
       <span class="state" :class="device.online ? 'on' : 'off'">{{ device.online ? 'ON' : 'OFF' }}</span>
     </header>
     <div class="name">
-      {{ label(device) }}
+      {{ deviceLabel(device) }}
       <span v-if="device.self" class="tag self">self</span>
       <span v-if="device.gateway" class="tag gateway">gateway</span>
     </div>

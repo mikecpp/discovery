@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import DeviceCard from '../components/DeviceCard.vue'
+import DeviceList from '../components/DeviceList.vue'
+import LayoutToggle from '../components/LayoutToggle.vue'
 import { formatAgo, getJson, usePolling } from '../api.js'
 
 const devices = ref([])
@@ -59,6 +60,7 @@ const progress = computed(() => {
       <template v-if="scanning"> · scanning {{ status.scanned }}/{{ status.hostCount }}</template>
       <template v-else-if="status.lastWatch"> · checked {{ formatAgo(status.lastWatch, now) }}</template>
     </span>
+    <LayoutToggle />
   </div>
   <div v-if="scanning" class="progress"><span :style="{ width: progress + '%' }"></span></div>
 
@@ -68,7 +70,5 @@ const progress = computed(() => {
   </div>
   <div v-else-if="!loaded" class="card muted">Loading...</div>
 
-  <div class="grid">
-    <DeviceCard v-for="device in visible" :key="device.ip" :device="device" :now="now" />
-  </div>
+  <DeviceList :devices="visible" :now="now" />
 </template>
