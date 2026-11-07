@@ -1,0 +1,32 @@
+menuconfig COMPONENT_ICMP
+    bool "ICMP"
+    default y
+    help
+      ICMP echo (ping) client used to detect whether a device answers.
+
+if COMPONENT_ICMP
+
+config ICMP_TIMEOUT_MS
+    int "Reply timeout (milliseconds)"
+    range 10 60000
+    default 1000
+
+config ICMP_DATA_SIZE
+    int "Echo payload size (bytes)"
+    range 0 1400
+    default 56
+
+config ICMP_EXTERNAL_FALLBACK
+    bool "Fall back to the system ping command"
+    default y
+    help
+      When neither an ICMP datagram socket nor a raw socket can be
+      opened (no CAP_NET_RAW and ping_group_range disabled), run the
+      system ping command instead.
+
+config ICMP_EXTERNAL_COMMAND
+    string "System ping command"
+    default "/usr/bin/ping"
+    depends on ICMP_EXTERNAL_FALLBACK
+
+endif

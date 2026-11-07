@@ -1,0 +1,29 @@
+menuconfig COMPONENT_WEBSERVER
+    bool "Web server"
+    default y
+    help
+      HTTP server that serves the embedded Vue 3 frontend and the JSON API.
+
+if COMPONENT_WEBSERVER
+
+config WEBSERVER_ADDRESS
+    string "Bind address"
+    default "0.0.0.0"
+
+config WEBSERVER_PORT
+    int "Port"
+    range 1 65535
+    default 8080
+
+config WEBSERVER_TITLE
+    string "Page title"
+    default "Device Discovery"
+
+config WEBSERVER_OPEN_BROWSER
+    bool "Open web browser on start"
+    default y
+    help
+      Open the page in the default browser once the server is listening.
+      Uses explorer.exe on WSL and xdg-open on Linux.
+
+endif

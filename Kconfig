@@ -1,0 +1,72 @@
+mainmenu "Discovery Configuration"
+
+menu "Components"
+
+source "components/webserver/Kconfig"
+source "components/icmp/Kconfig"
+
+endmenu
+
+menu "Discovery"
+
+config DISCOVERY
+    bool
+    default y
+
+config DISCOVERY_INTERFACE
+    string "Network interface"
+    default ""
+    help
+      Interface whose subnet is scanned. Leave empty to use the interface
+      of the default route, or the first interface with an IPv4 address.
+
+config DISCOVERY_THREADS
+    int "Scan threads"
+    range 1 256
+    default 32
+
+config DISCOVERY_MAX_HOSTS
+    int "Maximum hosts per scan"
+    range 1 65534
+    default 4096
+
+config DISCOVERY_WATCH_INTERVAL
+    int "Status watch interval (seconds)"
+    range 1 3600
+    default 5
+    help
+      How often every known device is pinged again to refresh its status.
+
+config DISCOVERY_RESCAN_INTERVAL
+    int "Full rescan interval (seconds)"
+    range 5 86400
+    default 120
+    help
+      How often the whole subnet is scanned again to find new devices.
+
+config DISCOVERY_OFFLINE_MISSES
+    int "Missed replies before offline"
+    range 1 10
+    default 2
+
+config DISCOVERY_IDENTIFY
+    bool "Identify device type and OS"
+    default y
+    help
+      Guess the device type and operating system from the reply TTL,
+      the MAC vendor and a short TCP port probe.
+
+if DISCOVERY_IDENTIFY
+
+config DISCOVERY_PROBE_TIMEOUT_MS
+    int "TCP probe timeout (milliseconds)"
+    range 50 10000
+    default 500
+
+config DISCOVERY_RESOLVE_NAMES
+    bool "Resolve host names with reverse DNS"
+    default y
+
+endif
+
+endmenu

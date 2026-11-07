@@ -1,0 +1,16 @@
+#pragma once
+
+#include <string>
+#include <vector>
+
+#include "Device.hpp"
+#include "Discovery.hpp"
+#include "Subnet.hpp"
+
+class Api {
+public:
+    static std::string status(const DiscoveryStatus& status, const Subnet& subnet);
+    static std::string devices(const std::vector<Device>& devices);
+    static std::string device(const Device& device);
+    static std::string message(const std::string& text);
+};
