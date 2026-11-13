@@ -57,6 +57,20 @@ sudo sysctl -w net.ipv4.ping_group_range="0 2147483647"
 
 Without either, the ICMP component falls back to spawning the system `ping` command (`ICMP_EXTERNAL_FALLBACK`). The active mode is shown on the Scan page.
 
+## Packaging
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target package   # tarball: build/discovery-1.0.0-Linux-x86_64.tar.gz
+cmake --build build --target deb       # Debian package: ./discovery_1.0.0_amd64.deb
+```
+
+The tarball contains the stripped binary, `install.sh` / `uninstall.sh`, a systemd unit and the installation guide (`docs/INSTALL.md`, rendered to `INSTALL.pdf` when Python 3 with `reportlab` is available).
+
+The `deb` target builds `discovery_1.0.0_amd64.deb` and copies it to the repository root. It is runtime only: it installs `/usr/bin/discovery` and the documentation, and its `postinst` grants `CAP_NET_RAW`. No service is installed; run `discovery` by hand. Maintainer scripts live in `packaging/debian/`. Install with `sudo apt install ./discovery_1.0.0_amd64.deb`.
+
+See `docs/INSTALL.md` for the end-user installation steps.
+
 ## API
 
 | Method | Path | Description |
