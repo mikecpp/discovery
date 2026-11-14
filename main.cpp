@@ -71,16 +71,24 @@ std::string serverUrl(const WebServer& server) {
 }
 
 #if defined(CONFIG_WEBSERVER_OPEN_BROWSER)
+#if !defined(__APPLE__)
 bool isWsl() {
     std::ifstream file("/proc/sys/kernel/osrelease");
     std::string release;
     std::getline(file, release);
     return release.find("microsoft") != std::string::npos || release.find("Microsoft") != std::string::npos;
 }
+#endif
 
 void openBrowser(const std::string& url) {
+#if defined(__APPLE__)
+    const std::string opener = "open";
+#else
     const std::string opener = isWsl() ? "explorer.exe" : "xdg-open";
-    const std::string command = opener + " '" + url + "' </dev/null >/dev/null 2>&1 &";
+#endif
+    // Check the opener exists first: the backgrounded launch always returns 0.
+    const std::string command = "command -v " + opener + " >/dev/null 2>&1 && { " + opener + " '" + url +
+                                "' </dev/null >/dev/null 2>&1 & }";
     if (std::system(command.c_str()) != 0) {
         log("ERROR", "Cannot open web browser with " + opener);
     }

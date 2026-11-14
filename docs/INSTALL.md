@@ -127,7 +127,7 @@ Example output:
 [INFO] 2026-11-10 10:30:01 Web server listening on http://localhost:8080/
 ```
 
-The default browser is opened automatically (`xdg-open` on Linux, `explorer.exe` on WSL). If no browser can be opened the scanner logs an error and keeps running. Press `Ctrl+C` to stop.
+The default browser is opened automatically (`open` on macOS, `xdg-open` on Linux, `explorer.exe` on WSL). If no browser can be opened the scanner logs an error and keeps running. Press `Ctrl+C` to stop.
 
 ### 4.2 As a service
 
@@ -179,7 +179,7 @@ These values are compiled into the released binary. Changing them requires a reb
 | Setting | Value | Meaning |
 | --- | --- | --- |
 | Web bind address / port | `0.0.0.0` / `8080` | The web UI and API are reachable from every interface |
-| Open browser on start | yes | Launches `xdg-open` or `explorer.exe` once listening |
+| Open browser on start | yes | Launches `open`, `xdg-open` or `explorer.exe` once listening |
 | Network interface | auto | Interface of the default route, or the first with an IPv4 address |
 | Scan threads | 32 | Parallel ping workers |
 | Maximum hosts per scan | 4096 | Larger subnets are truncated |

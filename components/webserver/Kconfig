@@ -24,6 +24,6 @@ config WEBSERVER_OPEN_BROWSER
     default y
     help
       Open the page in the default browser once the server is listening.
-      Uses explorer.exe on WSL and xdg-open on Linux.
+      Uses open on macOS, explorer.exe on WSL and xdg-open on Linux.
 
 endif
