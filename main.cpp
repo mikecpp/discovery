@@ -11,7 +11,9 @@
 
 #include "Api.hpp"
 #include "Discovery.hpp"
+#include "NetworkInfo.hpp"
 #include "RangeScan.hpp"
+#include "SystemMonitor.hpp"
 
 #if defined(CONFIG_COMPONENT_WEBSERVER)
 #include "WebServer.hpp"
@@ -95,7 +97,7 @@ void openBrowser(const std::string& url) {
 }
 #endif
 
-void registerRoutes(WebServer& server, Discovery& discovery, RangeScan& rangeScan) {
+void registerRoutes(WebServer& server, Discovery& discovery, RangeScan& rangeScan, SystemMonitor& monitor) {
     server.addRoute("GET", "/api/status", [&discovery](const HttpRequest&) {
         return HttpResponse::json(Api::status(discovery.status(), discovery.subnet()));
     });
@@ -122,6 +124,12 @@ void registerRoutes(WebServer& server, Discovery& discovery, RangeScan& rangeSca
             break;
         }
         return HttpResponse::json(Api::message(error), 400);
+    });
+    server.addRoute("GET", "/api/system", [&monitor](const HttpRequest&) {
+        return HttpResponse::json(Api::system(monitor.snapshot()));
+    });
+    server.addRoute("GET", "/api/network", [](const HttpRequest&) {
+        return HttpResponse::json(Api::network(NetworkInfo::interfaces()));
     });
     server.addRoute("POST", "/api/range/stop", [&rangeScan](const HttpRequest&) {
         rangeScan.stop();
@@ -166,8 +174,10 @@ int main() {
     options.title = CONFIG_WEBSERVER_TITLE;
 
     RangeScan rangeScan(settings, subnet);
+    SystemMonitor monitor;
+    monitor.start();
     WebServer server(options);
-    registerRoutes(server, discovery, rangeScan);
+    registerRoutes(server, discovery, rangeScan, monitor);
     if (!server.start()) {
         log("ERROR", "Web server failed to start: " + server.lastError());
         return 1;
@@ -181,6 +191,7 @@ int main() {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
     server.stop();
+    monitor.stop();
 #else
     while (stopRequested == 0) {
         for (int tick = 0; tick < CONFIG_DISCOVERY_WATCH_INTERVAL * 5 && stopRequested == 0; ++tick) {

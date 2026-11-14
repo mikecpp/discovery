@@ -92,3 +92,25 @@ export function formatDuration(ms) {
   if (ms < 1000) return `${ms} ms`
   return `${(ms / 1000).toFixed(1)} s`
 }
+
+export function formatBytes(bytes) {
+  if (!bytes && bytes !== 0) return '-'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let value = bytes
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit += 1
+  }
+  return `${value.toFixed(unit === 0 || value >= 100 ? 0 : 1)} ${units[unit]}`
+}
+
+export function formatUptime(seconds) {
+  if (!seconds) return '-'
+  const days = Math.floor(seconds / 86400)
+  const hours = Math.floor((seconds % 86400) / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  if (days) return `${days}d ${hours}h`
+  if (hours) return `${hours}h ${minutes}m`
+  return `${minutes}m`
+}

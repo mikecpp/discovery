@@ -87,7 +87,7 @@ Installer options:
 
 ### 3.4 How ICMP permission is chosen
 
-The scanner tries three ways to send pings, in this order, and reports the one in use on the Scan page and in its first log line:
+The scanner tries three ways to send pings, in this order, and reports the one in use on the Network page and in its first log line:
 
 1. **ICMP datagram socket**: works for unprivileged users when the kernel's `net.ipv4.ping_group_range` includes the user's group.
 2. **Raw socket**: requires `CAP_NET_RAW`, which `install.sh` grants with `setcap`.
@@ -197,7 +197,7 @@ These values are compiled into the released binary. Changing them requires a reb
 | --- | --- |
 | `Discovery failed to start: no interface with an IPv4 address` | The host has no usable interface. Connect to a network or rebuild with `DISCOVERY_INTERFACE` set. |
 | `Web server failed to start: bind: Address already in use` | Another program uses port 8080. Stop it, or rebuild with a different `WEBSERVER_PORT`. |
-| Scan page shows mode `external ping` | Neither socket type could be opened. Run `sudo setcap cap_net_raw+ep $(which discovery)` or set `net.ipv4.ping_group_range` (section 3.4). |
+| Network page shows mode `external ping` | Neither socket type could be opened. Run `sudo setcap cap_net_raw+ep $(which discovery)` or set `net.ipv4.ping_group_range` (section 3.4). |
 | Devices known to be online show red | Their firewall drops ICMP echo. Such devices cannot be tracked by ping. |
 | Page not reachable from another machine | A host firewall blocks TCP 8080. Allow it, for example `sudo ufw allow 8080/tcp`. |
 | On WSL2 only the WSL virtual subnet is scanned | WSL2 has its own NAT network. Run the scanner on the Windows side of the network or use the Discover page to scan the LAN range. |

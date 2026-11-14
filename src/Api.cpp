@@ -89,6 +89,67 @@ std::string Api::device(const Device& device) {
     return object.str();
 }
 
+std::string Api::system(const SystemSnapshot& snapshot) {
+    JsonArray cores;
+    for (const double usage : snapshot.coreUsage) {
+        cores.pushRaw(Json::number(usage));
+    }
+    JsonArray history;
+    for (const CpuSample& sample : snapshot.history) {
+        JsonObject point;
+        point.set("t", sample.time).set("cpu", sample.usage);
+        history.pushRaw(point.str());
+    }
+    JsonArray load;
+    for (const double value : snapshot.load) {
+        load.pushRaw(Json::number(value));
+    }
+    JsonObject object;
+    object.set("hostname", snapshot.hostname)
+        .set("os", snapshot.os)
+        .set("kernel", snapshot.kernel)
+        .set("arch", snapshot.arch)
+        .set("cpuModel", snapshot.cpuModel)
+        .set("cores", snapshot.cores)
+        .set("uptime", snapshot.uptimeS)
+        .setRaw("load", load.str())
+        .set("memoryTotal", snapshot.memoryTotal)
+        .set("memoryUsed", snapshot.memoryUsed)
+        .set("cpu", snapshot.cpuUsage)
+        .setRaw("coreUsage", cores.str())
+        .setRaw("history", history.str())
+        .set("interval", snapshot.intervalMs)
+        .set("window", snapshot.windowMs)
+        .set("now", Discovery::now());
+    return object.str();
+}
+
+std::string Api::network(const std::vector<NetworkInterface>& interfaces) {
+    JsonArray array;
+    for (const NetworkInterface& item : interfaces) {
+        JsonArray addresses;
+        for (const NetworkAddress& address : item.addresses) {
+            JsonObject entry;
+            entry.set("family", address.family).set("address", address.address).set("prefix", address.prefix);
+            addresses.pushRaw(entry.str());
+        }
+        JsonObject object;
+        object.set("name", item.name)
+            .set("mac", item.mac)
+            .set("up", item.up)
+            .set("running", item.running)
+            .set("loopback", item.loopback)
+            .set("mtu", item.mtu)
+            .set("rxBytes", item.rxBytes)
+            .set("txBytes", item.txBytes)
+            .setRaw("addresses", addresses.str());
+        array.pushRaw(object.str());
+    }
+    JsonObject object;
+    object.setRaw("interfaces", array.str()).set("now", Discovery::now());
+    return object.str();
+}
+
 std::string Api::message(const std::string& text) {
     JsonObject object;
     object.set("message", text);

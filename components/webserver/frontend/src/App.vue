@@ -9,8 +9,9 @@ const heading = computed(() => route.meta.title ?? '')
 
 const links = [
   { to: '/devices', label: 'Devices', icon: '▦' },
-  { to: '/scan', label: 'Scan', icon: '◎' },
   { to: '/range', label: 'Range', icon: '⇔' },
+  { to: '/network', label: 'Network', icon: '⊶' },
+  { to: '/system', label: 'System', icon: '◷' },
 ]
 
 onMounted(async () => {

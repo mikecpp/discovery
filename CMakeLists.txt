@@ -63,9 +63,11 @@ add_executable(discovery
     src/Discovery.cpp
     src/Identifier.cpp
     src/Json.cpp
+    src/NetworkInfo.cpp
     src/Oui.cpp
     src/RangeScan.cpp
     src/Subnet.cpp
+    src/SystemMonitor.cpp
 )
 target_include_directories(discovery PRIVATE src)
 target_compile_options(discovery PRIVATE ${COMPONENT_WARNINGS})

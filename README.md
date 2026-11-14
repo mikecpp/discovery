@@ -55,7 +55,7 @@ cmake --build build --target setcap            # sudo setcap cap_net_raw+ep buil
 sudo sysctl -w net.ipv4.ping_group_range="0 2147483647"
 ```
 
-Without either, the ICMP component falls back to spawning the system `ping` command (`ICMP_EXTERNAL_FALLBACK`). The active mode is shown on the Scan page.
+Without either, the ICMP component falls back to spawning the system `ping` command (`ICMP_EXTERNAL_FALLBACK`). The active mode is shown on the Network page.
 
 ## Packaging
 
@@ -79,6 +79,8 @@ See `docs/INSTALL.md` for the end-user installation steps.
 | GET | `/api/status` | Scan phase, progress, subnet and settings |
 | GET | `/api/devices` | All known devices with status, type, OS, vendor, ports |
 | POST | `/api/scan` | Request a full rescan now |
+| GET | `/api/system` | Host info, memory, load, current and per-core CPU usage, 2-minute CPU history |
+| GET | `/api/network` | All network interfaces with addresses, MAC, MTU and byte counters |
 
 ## Frontend development
 
